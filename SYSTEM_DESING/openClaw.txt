@@ -1,0 +1,7 @@
+Deterministic prompting: It's ordering maps, sets, and plugin lists deterministically so that LLM prompt caches hit reliably.
+
+Learning an attention mechanism is a must for learning AI. 
+
+Day 1: Setup & Build
+
+

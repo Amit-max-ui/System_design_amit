@@ -1,0 +1,131 @@
+Problem statement: 
+Uber is a ride-sharing platform that connects passengers with drivers who offer transportation services in personal vehicles. It allows users to book rides on demand from their smartphones, matching them with a nearby driver who will take them from their location to their desired destination.
+
+Functional Requirements:
+1. Riders should be able to input a start location and a destination and get a fare estimate. 
+2. Riders should be able to request a ride based on the estimated fare. 
+3. Upon request, riders should be matched with a driver who is nearby and available. 
+4. Drivers should be able to accept/decline a request and navigate to pickup/drop-off. 
+
+Non-functional requirements: 
+1. The system should have high availability.
+2. Matching should happen with low latency (ideally within a few seconds).
+3. The system should ensure strong consistency in ride matching to prevent any driver from being assigned multiple rides simultaneously
+4. Temporary inconsistencies in non-critical data are acceptable, but double-booking a driver should be avoided.
+5. The system should be able to handle high throughput, especially during peak hours or special events (100k requests from the same location)
+
+
+Scale Estimation: 
+Q 1. What is the daily active user - 30 M
+Q 2. What is the average booking per rider - 2 rides per day?
+
+Total no. of rides per day = 60M/day ~ 700 rides/sec
+Total no. of rides = 100k rides/sec
+
+Core Entities:
+Rider
+Drivers
+Ride
+fare 
+Location
+
+Recommendation: Start satisfying the functional requirements and then layer in the non-functional requirements afterward. 
+
+API Interface:
+1. POST /fare -> estimated fare and ETA
+Body: {
+	pickupLocation,
+	destination
+}
+
+2. POST /rides -> Ride
+Body: {
+	fareId
+}
+
+3. Update Driver Location Endpoint - 
+POST /drivers/location -> 
+Body: {
+	lat
+	long
+}
+
+4. Accept Ride Request Endpoint -
+PATCH /rides/:rideId -> Ride
+Body: {
+	accept/deny
+}
+
+
+High-Level Design:
+1. Rider should be able to input a start location and a destination and get an estimated fare:
+
+Rider Client -> API Gateaway -> 	     Rider serverce 	     -> DB (store fare obj)
+				      (Handles fare estimation)
+
+Fare table:
+- Id
+- userId
+- source
+- destination
+- price
+- ETA
+
+2. Riders should be able to request a ride based on the estimated fare.
+
+Rider Client -> API Gateway ->     Ride Service		-> DB (store ride obj) 
+				    (handle ride creation)
+
+Ride Table:
+- rideId
+- riderId
+- driverId
+- fareId (foreign key)
+- source
+- destination
+- status.
+
+
+3. Upon request, riders should be matched with a driver who is nearby and available.
+
+Ride Matching service -> This service handles incoming ride requests and match it with the best available driver based on proximity, availability, driver rating, and other relevant factors. 
+
+Location service -> Manages the real-time location data of drivers. It's responsible for receiving location updates from drivers, storing this information in the database, and providing the Ride Matching service with the latest location data
+
+
+Rider Client -> API Gateway -> Location service -> DB (store driver info)
+
+Driver Table:
+- id
+- vehicle
+- name
+- location
+
+Rider Client -> API Gateway -> Ride service -> Ride Matching service -> - Get nearby drivers -> DB
+
+Upon request, the rider should be matched with a driver who is nearby and available.
+
+
+4. Drivers should be able to accept/decline a request and navigate to pickup/drop-off.
+
+Once a driver is matched with a rider, they can accept the ride request and navigate to the pickup location. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
