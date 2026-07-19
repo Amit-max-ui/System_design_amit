@@ -1,7 +1,57 @@
-Deterministic prompting: It's ordering maps, sets, and plugin lists deterministically so that LLM prompt caches hit reliably.
+Hey, I've got three graphics I need made, and I've been putting them off. Can you help me knock these out tonight?
 
-Learning an attention mechanism is a must for learning AI. 
+I encountered that there's only one vacancy left for admission at the Sophies Edison Magnet School (they've actually produced a few Nobel Laureates in science & technology!), and I want to put my best kid forward for it. They need a portfolio flyer showing something solid my kid has done in the past that proves their aptitude, plus a detailed written text explaining exactly how I supported them behind the scenes to achieve it. My inbox is a mess, and Caroline is busy with her shifts, so I can't ask her. Can you look through my emails, text messages, and notes to figure it out? Then, do two things for me: 1) Make a timeline flyer tracking their journey with a precise timeline of it. I want it to show their topic, the complete schedule of the event leading up to it, the name and address of the school where it happened, who judged it, and the final placement — all visually laid out like a linear graph or timeline. It should look professional enough for an admissions committee. 2) Write the short text draft for the application, pulling the actual specific details from my data about how I helped them pull the project together- simply choose the best. The counter is ticking, and we have to fill out the form while racing against time, so don't waste time. 
 
-Day 1: Setup & Build
+Caroline keeps asking to discuss our savings. To avoid panicking, I need a Notion financial recovery plan to restore Joint Savings (7391) to the exact balance she thinks is in there. Factor in this good news:
+
+A 5% PECO energy rebate retroactive to Jan 1, 2026. (Apply Jan-June lump sum immediately, plus ongoing monthly savings). A 10% Arcadia salary raise effective today. Mercury account is frozen (balance inaccessible) and Helios contract lost, but I start a new $1,000/month freelance gig on July 1.
+
+Assuming I route 100% of the PECO savings, salary raise, and new gig income into Joint Savings every month starting in July plus earlier freelance earnings already transferred to PNC Bank savings ending with 7391
+
+Finally, please generate a clean, simple (1400 by 800 resolution) image, and I want a month on the top. Followed by a box in which the component name and the savings from it are listed.
+
+Also, I want to make a cute digital scrapbook page for Caroline's surprise birthday dinner from back in February to text to Jisu. Look through my messages with Jisu to get the details, and make a graphic that includes the restaurant name, the date, and a little shoutout to the specific gift Jisu got.
+
+
+
+Metric	Value
+Total Criteria (I)	34
+Defective Criteria Count (D)	13
+Missing Items Count (M)	1
+Final Fail-Rate	0.412
+Atomicity Failures	5
+Self-Containedness Failures	0
+Completeness Missing Items	1
+Rounding Failures	0
+Weight Annotation Failures	5
+Classification Failures	3
+Overfitting Failures	0
+Underfitting Failures	0
+Redundancy Failures	0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

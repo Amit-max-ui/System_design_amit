@@ -1,0 +1,18 @@
+Agentic RAG on Kubeflow. 
+
+Q. What is Agentic RAG?
+It introduces autonomous agents capable of dynamic decision-making and workflow optimization. Unlike static systems, Agentic RAG employs iterative refinement and adaptive retrieval strategies to address complex, real-time, and multi-domain queries. This paradigm leverages the modularity of retrieval and generation processes while introducing agent-based autonomy.
+
+Use case of Agentic RAG: 
+- Customer support
+- Financial analytics
+- Adaptive learning platforms, 
+where dynamic adaptability and contextual precision are paramount.
+
+
+Concepts:
+- RabbitAI integration for automatic testing for PR. 
+
+Terms: 
+- Orchestration mechanism. 
+- Contextual Integration.

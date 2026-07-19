@@ -1,0 +1,187 @@
+API Rate Limiting: 
+
+Rate limiting is a technique used to control how many requests a user, service, or client can make to an API or system within a given time period.
+
+Problem Statement: Uber operates thousands of interconnected microservices serving over 170 million users. Traditional static rate limits cannot adapt to changing service capacity and traffic patterns, leading to resource underutilization during healthy periods and service overload during degraded conditions. Design a load management system that dynamically controls traffic based on real-time service health and capacity while preventing cascading failures and maximizing system utilization.
+
+
+Functional Requirement:
+- Designing a resilient load manager: Identify the right signal for overload.
+- Shed traffic/load by priority. Dropping low-priority requests first. 
+- Balance resilience and Fairness. We need per-tenant rate limiting that works independently of the system load. 
+
+Non-Functional Requirement: 
+
+Entities:
+
+Scale Calculation:
+
+170M monthly active users:
+
+Uber's Docstore and Schemaless: Uber's in-house distributed database built on top of MySQL. 
+- Store tens of petabytes of operational data. 10PB = 10k TB = 10M GB
+- Thousands of clusters. 
+- It comprises three primary layers: a stateless query engine, a stateful storage engine, and a control plane.
+- The stateless query engine is responsible for query planning, request routing, sharding, schema management, authorization, request parsing, and validation. It serves as the routing layer: coordinating and validating client requests before handing them off to the storage layer.
+- The stateful storage engine handles transaction management, connection pooling, consensus, and replication.
+
+We are using Controlled Delay (CoDel), a concept borrowed from networking to combat bufferbloat. 
+CoDel asks, How long have requests been waiting?
+
+Quota-Based Rate Limiting in the Query Engine Layer
+Concept: Assign each read and write request a capacity unit cost based on bytes processed, grant users fixed quotas, and return a 429 when those quotas are exceeded. 
+- We are storing quota usage in a central Redis cache. 
+
+Why Failed? 
+- First, it added unnecessary complexity. Every request required a Redis call, introducing a new point of failure and the overhead of an additional network hop. 
+- Further, for the stateless routing layer to accurately shed requests for an overloaded storage partition, it’d need to maintain real-time health and load information for thousands of partitions across the system. This introduced a lot of tracking overhead, undermining the scalability of the architecture.
+- Imprecise cost model: Lightweight and heavyweight operations were treated the same, making quota enforcement unreliable. 
+- This approach failed, but it gave us a crucial insight: overload management must live as close to the storage nodes as possible. This realization became a cornerstone of the final design in the sateful storage layer. 
+
+
+Identifying the Right Signal for Overload
+- Instead of static rate limiting, we need a dynamic rate limiting that balances resilience and fairness. That is, during system-wide stress, we want to shed load by priority, dropping low-priority requests first. 
+- Resolve noisy neighbour problem, that is, we also need per-tenant rate limiting that works independently of the system load. 
+- This dual requirement led us to combine a dynamic overload detector with fairness enforcement mechanisms that operate in parallel. 
+
+UNIFIED LOAD MANAGER: 
+Controlled Delay(CoDel): Instead of shedding based on the queue length, CoDel looks at how long requests wait in the queue. 
+
+INNOVATION: 
+FIFO(First in, first out): The queue processes requests in arrival order, which works well when traffic is stable.
+But under overload, FIF creates a trap: Old requests accumulate, wait too long, and often get abandoned or retrieved by the client. This result is wasted as the user might have a timeout. Meanwhile, fresh requests still relevant and likely to succeed sit idle at the end of the line. 
+Under pressure, it switches to LIFO, favoring newer requests that still have a chance to succeed. This simple shift improves responsiveness by failing fast, sheeding stale work, and giving requests priority. 
+
+SCORECARD ENGINE: Ensure fairness between tenants. 
+It's a rule-based admission control component and a lightweight quota system designed to enforce per-tenant concurrency limits in multitenant environments. 
+Scorecard ensures that no single tenant can dominate shared infrastructure, even in normal conditions.  
+Benefit: Isolates and caps misbehaving tenants without disrupting others, balances stability during normal load with strict limits under stress, and reduces the blast radius during overload events by enforcing boundaries quickly and deterministically. 
+
+REGULATORS: The scorecard protects against concurrency-based overuse; it doesn't cover all the ways a stateful database system can overload. For example, a low QPS called service can still overload the system by sending large write payloads.
+Or, traffic skewed to one partition key can overload a single cluster while others sit idle. 
+
+So, we introduced plug-in regulators: node-local overload detectors that enforce invariants that the system mustn't violate. 
+
+E.g 
+Write bytes regulator.
+Partition key regulator.
+Memory regulator.
+Goroutines regulator. 
+
+Limitations:
+- Lack of traffic differentiation: CoDel treated all requests equally, dropping low-priority and user-facing traffic alike - bad customer experience and increased on-call load. 
+- It keeps things from breaking, but lacks the nuance and dynamism required for a high-quality user experience. 
+- This highlighted the need for dynamic and priority-aware queues. 
+
+
+EVOLVING THE ARCHITECTURE (Cinnamon replaces CoDel):
+Cinnamon: It's a priority-aware load shedder developed by the delivery team at Uber. Cinnamon makes smarter shedding decisions by considering request rank, dynamic system state, and the relative importance of workloads. 
+- A priority is attached to every request. If no explicit priority is present, Cinnamon assigns a default based on the calling service. 
+- Priority is assigned using a tiering model from tier 0(t0) for the most critical traffic to tier 5(t5) for the least. 
+- Long-running and background operations were marked with lower priority instead of having a separate queue. 
+- While CoDel is priority-agnostic, Cinnamon is priority-aware. 
+
+
+This prevents a large class of premature shedding that would otherwise lead to unnecessary rejections, retries, and thundering herd effects. The result is smoother recovery, fewer 429s, and more consistent availability without compromising system health.
+
+
+Centralized, pluggable architecture. 
+How Cinnamon is a centralized, pluggable architecture. 
+
+
+Lesson learned:
+- Prioritization is paramount.
+- Fail fast, don't block.
+- PID regulation for stable shedding. 
+- Embrace dynamism. 
+- Invest in visibility and monitoring. 
+- Simplicity over complexity. 
+
+
+Let's build the system.
+
+1. SCORECARD:
+
+Problem statement: Uber’s databases are shared by multiple tenants (services). A misbehaving tenant can consume excessive concurrent resources and degrade performance for other tenants. We need a mechanism to enforce fairness and prevent noisy-neighbor issues in a multitenant environment.
+
+Scale: Let's assume.
+- A storage node serves 100 tenants. 
+- A tenant may be up to 1000 concurrent requests.
+- A node may handle 50,000 concurrent requests. 
+
+Since Scorecard enforces per-tenant concurrency limits in multitenant environments. 
+Q. Why Scorecard choose concurrency?
+Imagine there are two tenants:
+Tenant A: 10 req/sec, and each req takes 10s.
+Concurrency = Latency*throughput (Little's law) = 100
+
+Tenant B: 100req/sec, and each req takes 10ms.
+Concurrency = 100*0.1 = 1
+Observation: Concurrency is a better signal than QPS because it reflects resources currently being consumed. 
+
+Q. How does Scorecard decide whether to admit or reject a request?
+Let's say Scorecard received a request.
+Tenanat A -> New Request. Before making a decision, Scorecard must know how many in-flight requests Tenant A currently has.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Concept:
+- Stateless: Service doesn't remember previous requests (easy scaling). 
+- Stateful: Service remembers information between requests (scaling is challenging)
+- Replication: It means creating and maintaining multiple copies of the same data on different database servers (nodes).
+- Raft: It's a consensus algorithm for managing a replicated log. 
+- Quota-based rate-limiting: Assign each read and write request a capacity unit cost based on bytes processed. 
+- Throughput: It is the number of tasks a system can complete in a unit of time. 
+- Latency: It's the unit of time taken to complete a task. 
+- Load shedding: It is the process of intentionally dropping or rejecting some requests when a system is overloaded, so that the system can continue serving the remaining requests successfully.
+- Little's Law: Concurrency = Throughput * Latency
+- on-call engineer: who must be available to handle the system. 
+- Thundering herd problem: The thundering herd problem occurs when a large number of clients, threads, or requests wake up, retry, or compete for the same resource at nearly the same time, creating a sudden traffic spike that can overload the system.
+- In-flight request: A request that has been accepted and is currently being processed but has not yet been completed. The number of in-flight requests is a measure of concurrency. 
+Incoming request -> Accepted -> | In-flight | -> Completed
+- Tail latency: It refers to the latency experienced by the slowest requests in a system. 
+
+
+Terms: 
+- Microservice architecture
+- Mission-critical workload
+- Multitenant environment
+- Resource utilization
+- Cascading Failure
+- Stateless vs. stateful
+- Database Replication
+- 429 Status code
+- Load shedding
+- Little's Law
+- Noisy neighbor problem. 
+- Point of failure (POF)
+- Network hop
+- Resilience system. 
+- on-call load
+- In-flight request

@@ -1,0 +1,32 @@
+Project Tech stack:
+Backend: Go programming language
+Frontend: React + vite
+RabbitMQ for job queue
+
+Slack Integration: 
+
+
+Concepts:
+Email service: email sending goes through a RabbitMQ job queue with a max of 3 retries.
+Monoliths
+Microservices:
+React Lazy Loading: Instead of loading when the app starts, React loads it only when it's actually needed (for example, when the user navigates to that route). 
+Suspence:
+Barrel File in React: 
+ 
+
+
+Tools: 
+- CodeRabbit: provides instant and accurate feedback on pull requests. 
+- Docker CLI
+- Docker Daemon
+- GORM
+
+Informations:
+docker-compose.yml - This tells Docker to install the software mentioned in the file. 
+Quick setup instructions: 
+
+Commands:
+docker compose up -d
+docker compose ps
+docker ps
